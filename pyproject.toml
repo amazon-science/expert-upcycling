@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "expert-upcycling"
+version = "0.1.0"
+description = "Expert Upcycling: Capacity expansion for Mixture-of-Experts models"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Chaitanya Dwivedi"},
+    {name = "Himanshu Gupta"},
+    {name = "Neeraj Varshney"},
+    {name = "Pratik Jayarao"},
+    {name = "Bing Yin"},
+    {name = "Trishul Chilimbi"},
+    {name = "Binxuan Huang"},
+]
+dependencies = [
+    "torch>=2.1",
+    "numpy",
+]
+
+[project.optional-dependencies]
+megatron = [
+    "megatron-core",
+]
+nemo = [
+    "nemo-toolkit[nlp]",
+    "lightning>=2.0",
+    "omegaconf",
+    "dacite",
+]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+include = ["expert_upcycling*"]

@@ -1,0 +1,73 @@
+# Expert Upcycling configuration
+# Tested with nvcr.io/nvidia/nemo:24.09 (NeMo 2.0, megatron-core 0.9.0).
+# Adjust paths and model/parallelism settings to match your setup.
+
+upcycle:
+  output_ckpt_location: ""  # auto-derived from input checkpoint if empty
+  expert_multiplier: 2      # 2x = double experts (e.g. 32->64)
+  expert_upcycle_strategy:
+    # --- Utility-based (recommended) ---
+    usefulness_metric: weight_norm        # weight_norm | weight_grad_product | gradient_squared | approx_fisher
+    selection_strategy: greedy            # greedy | weighted_sampling
+    layer_selection: fc1_only             # fc1_only | fc2_only | both_average | both_product
+    max_duplicates_per_expert: 3
+    optimizer_state_strategy: copy        # copy | reset | scale | interpolate
+    # --- OR heuristic-based (uncomment below, comment out utility block above) ---
+    # method: copy                        # copy | copy_noise | drop_upcycle | svd_perturb | ...
+    # optimizer_state_strategy: copy
+  router_upcycle_strategy:
+    method: bias_only                     # copy | copy_noise | bias_only | ...
+    bias_noise_scale: 0.01
+    bias_shift: 0.0
+
+trainer:
+  num_nodes: 1
+  devices: 1
+  max_steps: 1          # only 1 step needed — upcycling fires on the first optimizer step
+  limit_val_batches: 0.0
+  num_sanity_val_steps: 0
+  log_every_n_steps: 1
+
+strategy:
+  tensor_model_parallel_size: 1
+  pipeline_model_parallel_size: 1
+  expert_model_parallel_size: 1
+  sequence_parallel: false
+  ckpt_load_optimizer: true
+  ckpt_save_optimizer: false
+
+mixed_precision:
+  precision: bf16-mixed
+
+# Model config below matches the GPU entrypoint test (fits in 24 GB L4).
+# Replace with your actual model dimensions for production use.
+model:
+  num_layers: 2
+  hidden_size: 256
+  ffn_hidden_size: 896
+  num_attention_heads: 2
+  num_query_groups: 2
+  seq_length: 128
+  # MoE
+  num_moe_experts: 32
+  moe_router_topk: 2
+  moe_grouped_gemm: true
+  moe_router_load_balancing_type: aux_loss   # seq_aux_loss available in megatron-core >= 0.10
+  moe_token_dispatcher_type: alltoall
+  moe_aux_loss_coeff: 0.01
+  # Architecture
+  gated_linear_unit: true       # SwiGLU
+  normalization: RMSNorm
+  position_embedding_type: rope
+  add_bias_linear: false
+  share_embeddings_and_output_weights: false
+  qk_layernorm: false           # set true only with LayerNorm (FusedLayerNorm doesn't support RMSNorm)
+  # Parallelism
+  tensor_model_parallel_size: 1
+  pipeline_model_parallel_size: 1
+  expert_model_parallel_size: 1
+  sequence_parallel: false
+
+resume:
+  restore_config:
+    path: /path/to/base/checkpoint
